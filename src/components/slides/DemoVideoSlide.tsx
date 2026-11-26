@@ -20,11 +20,15 @@ interface DemoVideoSlideProps {
 
 export const DemoVideoSlide: React.FC<DemoVideoSlideProps> = ({ categoryKey }) => {
   const config = DEMO_SLIDE_CONFIGS[categoryKey];
-  const videoSrc = DEMO_VIDEO_SOURCES[categoryKey];
+  const primarySrc = DEMO_VIDEO_SOURCES[categoryKey];
 
+  const [useFallback, setUseFallback] = useState<boolean>(false);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(true);
   const [hasLoadError, setHasLoadError] = useState<boolean>(false);
+
+  const videoSrc =
+    useFallback && config.githubFallbackUrl ? config.githubFallbackUrl : primarySrc;
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hasAutoStartedRef = useRef<boolean>(false);
@@ -50,7 +54,14 @@ export const DemoVideoSlide: React.FC<DemoVideoSlideProps> = ({ categoryKey }) =
     }
   };
 
-  // Start playing automatically from the beginning whenever this DEMO slide opens
+  // Reset source state when switching DEMO slides
+  useEffect(() => {
+    setUseFallback(false);
+    hasAutoStartedRef.current = false;
+    setHasLoadError(false);
+  }, [categoryKey]);
+
+  // Start playing automatically from the beginning whenever this DEMO slide or src changes
   useEffect(() => {
     hasAutoStartedRef.current = false;
     setHasLoadError(false);
@@ -63,6 +74,15 @@ export const DemoVideoSlide: React.FC<DemoVideoSlideProps> = ({ categoryKey }) =
     videoEl.currentTime = 0;
     startPlayback();
   }, [videoSrc, categoryKey]);
+
+  const handleVideoError = () => {
+    if (!useFallback && config.githubFallbackUrl && primarySrc !== config.githubFallbackUrl) {
+      setUseFallback(true);
+      setHasLoadError(false);
+      return;
+    }
+    setHasLoadError(true);
+  };
 
   const handleTogglePlay = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -217,7 +237,7 @@ export const DemoVideoSlide: React.FC<DemoVideoSlideProps> = ({ categoryKey }) =
               }}
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}
-              onError={() => setHasLoadError(true)}
+              onError={handleVideoError}
               className="w-full h-full object-contain"
             />
           </div>
