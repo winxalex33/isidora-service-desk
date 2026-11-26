@@ -4,38 +4,91 @@ import { ServiceDeskSlide } from './components/slides/ServiceDeskSlide';
 import { RuleGeneratorSlide } from './components/slides/RuleGeneratorSlide';
 import { BankChatbotSlide } from './components/slides/BankChatbotSlide';
 import { InternalChatbotSlide } from './components/slides/InternalChatbotSlide';
+import { DemoVideoSlide } from './components/slides/DemoVideoSlide';
+import { DemoCategoryKey } from './config/demoVideos';
+
+interface CategoryMeta {
+  index: number;
+  navLabel: string;
+  firstSlideIdx: number;
+}
 
 interface SlideMeta {
   id: number;
-  navLabel: string;
+  categoryIdx: number;
   title: string;
   maxSteps: number;
+  kind: 'content' | 'demo';
+  demoKey?: DemoCategoryKey;
 }
+
+const CATEGORIES: CategoryMeta[] = [
+  { index: 0, navLabel: '1. Service Desk', firstSlideIdx: 0 },
+  { index: 1, navLabel: '2. Генератор на правила', firstSlideIdx: 2 },
+  { index: 2, navLabel: '3. Бот за банки', firstSlideIdx: 4 },
+  { index: 3, navLabel: '4. Бот за интерни', firstSlideIdx: 6 },
+];
 
 const SLIDES: SlideMeta[] = [
   {
     id: 0,
-    navLabel: '1. Service Desk',
+    categoryIdx: 0,
     title: 'Service Desk',
     maxSteps: 5,
+    kind: 'content',
   },
   {
     id: 1,
-    navLabel: '2. Генератор на правила',
-    title: 'ISIDORA Генератор на правила',
-    maxSteps: 4,
+    categoryIdx: 0,
+    title: 'Service Desk — DEMO',
+    maxSteps: 1,
+    kind: 'demo',
+    demoKey: 'service-desk',
   },
   {
     id: 2,
-    navLabel: '3. Бот за банки',
-    title: 'ISIDORA Chatbot за клиенти банки',
-    maxSteps: 2,
+    categoryIdx: 1,
+    title: 'ISIDORA Генератор на правила',
+    maxSteps: 4,
+    kind: 'content',
   },
   {
     id: 3,
-    navLabel: '4. Бот за интерни',
+    categoryIdx: 1,
+    title: 'ISIDORA Генератор на правила — DEMO',
+    maxSteps: 1,
+    kind: 'demo',
+    demoKey: 'rule-generator',
+  },
+  {
+    id: 4,
+    categoryIdx: 2,
+    title: 'ISIDORA Chatbot за клиенти банки',
+    maxSteps: 2,
+    kind: 'content',
+  },
+  {
+    id: 5,
+    categoryIdx: 2,
+    title: 'ISIDORA Chatbot за клиенти банки — DEMO',
+    maxSteps: 1,
+    kind: 'demo',
+    demoKey: 'bank-chatbot',
+  },
+  {
+    id: 6,
+    categoryIdx: 3,
     title: 'ISIDORA Chatbot за интерни корисници',
     maxSteps: 2,
+    kind: 'content',
+  },
+  {
+    id: 7,
+    categoryIdx: 3,
+    title: 'ISIDORA Chatbot за интерни корисници — DEMO',
+    maxSteps: 1,
+    kind: 'demo',
+    demoKey: 'internal-chatbot',
   },
 ];
 
@@ -51,6 +104,16 @@ export default function App() {
   const lastHeightRef = useRef<number>(0);
 
   const currentSlide = SLIDES[activeSlideIdx];
+
+  const jumpToSlide = useCallback(
+    (targetSlideIdx: number) => {
+      if (targetSlideIdx < 0 || targetSlideIdx >= SLIDES.length) return;
+      setDirection(targetSlideIdx >= activeSlideIdx ? 1 : -1);
+      setActiveSlideIdx(targetSlideIdx);
+      setVisibleStep(1);
+    },
+    [activeSlideIdx]
+  );
 
   const handleNext = useCallback(() => {
     if (visibleStep < currentSlide.maxSteps) {
@@ -164,16 +227,15 @@ export default function App() {
         e.preventDefault();
         handleBack();
       } else if (['1', '2', '3', '4'].includes(e.key)) {
-        const target = Number(e.key) - 1;
-        setDirection(target >= activeSlideIdx ? 1 : -1);
-        setActiveSlideIdx(target);
-        setVisibleStep(1);
+        const targetCategory = Number(e.key) - 1;
+        const targetSlide = CATEGORIES[targetCategory]?.firstSlideIdx ?? 0;
+        jumpToSlide(targetSlide);
       }
     };
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [handleNext, handleBack, activeSlideIdx]);
+  }, [handleNext, handleBack, jumpToSlide]);
 
   return (
     <div
@@ -184,37 +246,43 @@ export default function App() {
         handleNext();
       }}
     >
-      {/* Clean PowerPoint Slide Header Strip (No buttons) */}
+      {/* Clean PowerPoint Slide Header Strip */}
       <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-xs border-b border-slate-200/90">
         <div className="max-w-[1320px] mx-auto px-6 lg:px-10 h-14 flex items-center justify-between gap-8">
           <span className="text-base font-extrabold tracking-tight text-slate-900 whitespace-nowrap shrink-0">
             ISIDORA &amp; Service Desk
           </span>
 
-          <div className="hidden md:flex items-center gap-8 text-xs font-semibold">
-            {SLIDES.map((slide, idx) => {
-              const isActive = idx === activeSlideIdx;
+          <nav className="hidden md:flex items-center gap-8 text-xs font-semibold">
+            {CATEGORIES.map((category) => {
+              const isActive = category.index === currentSlide.categoryIdx;
               return (
-                <span
-                  key={slide.id}
-                  className={`relative py-4 whitespace-nowrap transition-colors ${
-                    isActive ? 'text-blue-700' : 'text-slate-400'
+                <button
+                  key={category.index}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    jumpToSlide(category.firstSlideIdx);
+                  }}
+                  className={`relative py-4 whitespace-nowrap transition-colors cursor-pointer ${
+                    isActive ? 'text-blue-700' : 'text-slate-400 hover:text-slate-700'
                   }`}
                 >
-                  {slide.navLabel}
+                  {category.navLabel}
                   {isActive && (
                     <motion.span
                       layoutId="pptActiveSlideBar"
                       className="absolute left-0 right-0 bottom-0 h-0.5 bg-blue-700"
                     />
                   )}
-                </span>
+                </button>
               );
             })}
-          </div>
+          </nav>
 
           <span className="text-xs font-semibold text-slate-500 tabular-nums whitespace-nowrap shrink-0">
             Слајд {activeSlideIdx + 1} / {SLIDES.length}
+            {currentSlide.kind === 'demo' ? ' · DEMO' : ''}
           </span>
         </div>
       </header>
@@ -234,22 +302,27 @@ export default function App() {
             className="w-full"
           >
             {activeSlideIdx === 0 && <ServiceDeskSlide visibleStep={visibleStep} />}
-            {activeSlideIdx === 1 && <RuleGeneratorSlide visibleStep={visibleStep} />}
-            {activeSlideIdx === 2 && <BankChatbotSlide visibleStep={visibleStep} />}
-            {activeSlideIdx === 3 && <InternalChatbotSlide visibleStep={visibleStep} />}
+            {activeSlideIdx === 2 && <RuleGeneratorSlide visibleStep={visibleStep} />}
+            {activeSlideIdx === 4 && <BankChatbotSlide visibleStep={visibleStep} />}
+            {activeSlideIdx === 6 && <InternalChatbotSlide visibleStep={visibleStep} />}
+            {currentSlide.kind === 'demo' && currentSlide.demoKey && (
+              <DemoVideoSlide categoryKey={currentSlide.demoKey} />
+            )}
           </motion.div>
         </AnimatePresence>
         <div ref={bottomAnchorRef} className="h-1" aria-hidden="true" />
       </main>
 
-      {/* Quiet PowerPoint Slide Footer (Progress bar & keyboard hint, zero buttons) */}
+      {/* Quiet PowerPoint Slide Footer (Progress bar & keyboard hint) */}
       <footer className="bg-white/80 border-t border-slate-200/80">
         <div className="max-w-[1320px] mx-auto px-6 lg:px-10 py-3 flex items-center justify-between gap-6 text-xs text-slate-500">
           <div className="flex items-center gap-3">
             <span className="font-semibold text-slate-700">{currentSlide.title}</span>
             <span aria-hidden="true">·</span>
             <span className="tabular-nums">
-              Анимација {visibleStep} / {currentSlide.maxSteps}
+              {currentSlide.kind === 'demo'
+                ? 'DEMO видео · Автоматска репродукција'
+                : `Анимација ${visibleStep} / ${currentSlide.maxSteps}`}
             </span>
           </div>
 
